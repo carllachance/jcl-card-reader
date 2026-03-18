@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info:
+  title: Card Reader API Contract
+  version: 0.1.0
+paths:
+  /api/cards/upload:
+    post:
+      summary: Upload and analyze card images
+  /api/cards/{card_id}/confirm:
+    post:
+      summary: Confirm catalog match or none-of-these
+  /api/cards:
+    get:
+      summary: List inventory cards
+  /api/cards/{card_id}:
+    get:
+      summary: Card detail
