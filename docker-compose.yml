@@ -1,0 +1,31 @@
+version: '3.9'
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: card_reader
+    ports: ['5432:5432']
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/db/migrations:/docker-entrypoint-initdb.d/migrations
+      - ./infra/db/seeds:/docker-entrypoint-initdb.d/seeds
+
+  api:
+    build: ./services/api
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/card_reader
+      STORAGE_DIR: /app/storage
+    ports: ['8000:8000']
+    depends_on: [db]
+
+  web:
+    build: ./apps/web
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+    ports: ['3000:3000']
+    depends_on: [api]
+
+volumes:
+  pgdata:
