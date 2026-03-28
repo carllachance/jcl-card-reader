@@ -6,10 +6,10 @@ from app.core.db import get_db
 from app.models.inventory import InventoryCard
 from app.models.catalog import CatalogCard
 from app.schemas.cards import UploadAnalyzeResponse, ConfirmRequest, CardDetail
-from app.services.analysis import AnalysisPipeline, MockOCRProvider, MockEmbeddingProvider
+from app.services.analysis import AnalysisPipeline, OCRSpaceProvider, ImageEmbeddingProvider
 from app.services.catalog_search import CatalogSearchService
 from app.services.valuation import MockValuationProvider
-from app.storage.object_storage import ObjectStorage
+from app.adapters.object_storage import ObjectStorage
 
 router = APIRouter(prefix="/api/cards", tags=["cards"])
 
@@ -31,8 +31,11 @@ def upload_and_analyze(
         front_url = storage.store(ftmp.name, "front")
         back_url = storage.store(btmp.name, "back")
 
-    pipeline = AnalysisPipeline(MockOCRProvider(), MockEmbeddingProvider())
-    result = pipeline.run(front_url, back_url)
+    pipeline = AnalysisPipeline(OCRSpaceProvider(), ImageEmbeddingProvider())
+    try:
+        result = pipeline.run(front_url, back_url)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Unable to analyze images: {exc}") from exc
 
     search = CatalogSearchService()
     catalog_cards = db.query(CatalogCard).all()

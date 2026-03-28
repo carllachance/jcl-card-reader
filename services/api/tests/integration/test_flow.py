@@ -1,9 +1,11 @@
 from io import BytesIO
+
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.core.db import Base, engine, SessionLocal
 from app.models.catalog import CatalogCard
+from app.services.analysis import OCRResult
 
 
 client = TestClient(app)
@@ -13,12 +15,39 @@ def setup_module():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     if db.query(CatalogCard).count() == 0:
-        db.add(CatalogCard(year=1989, set_name="Upper Deck", card_number="1", player_name="Ken Griffey Jr.", team="Seattle Mariners", image_embedding=[0.8,0.3,0.2]))
+        db.add(
+            CatalogCard(
+                year=1989,
+                set_name="Upper Deck",
+                card_number="1",
+                player_name="Ken Griffey Jr.",
+                team="Seattle Mariners",
+                image_embedding=[0.8, 0.3, 0.2],
+            )
+        )
         db.commit()
     db.close()
 
 
-def test_upload_analyze_confirm_inventory_flow():
+def test_upload_analyze_confirm_inventory_flow(monkeypatch):
+    def fake_extract(_self, _image_path: str, side: str):
+        return OCRResult(
+            raw_text=f"[{side}] Ken Griffey Jr. Upper Deck #1 1989",
+            clues={
+                "player_name": "Ken Griffey Jr.",
+                "year": 1989,
+                "set_name": "Upper Deck",
+                "card_number": "1",
+                "team": "Seattle Mariners",
+                "parallel": None,
+                "serial_number": None,
+                "has_autograph": False,
+                "has_relic": False,
+            },
+        )
+
+    monkeypatch.setattr("app.services.analysis.OCRSpaceProvider.extract", fake_extract)
+
     files = {
         "front_image": ("griffey-front.jpg", BytesIO(b"front"), "image/jpeg"),
         "back_image": ("griffey-back.jpg", BytesIO(b"back"), "image/jpeg"),
@@ -30,7 +59,10 @@ def test_upload_analyze_confirm_inventory_flow():
     assert body["status"] == "needs_review"
     assert len(body["candidates"]) >= 1
 
-    confirm = client.post(f"/api/cards/{card_id}/confirm", json={"catalog_id": body["candidates"][0]["catalog_id"], "none_of_these": False})
+    confirm = client.post(
+        f"/api/cards/{card_id}/confirm",
+        json={"catalog_id": body["candidates"][0]["catalog_id"], "none_of_these": False},
+    )
     assert confirm.status_code == 200
     assert confirm.json()["status"] == "confirmed"
     assert confirm.json()["valuation_snapshot"]["low"] > 0
