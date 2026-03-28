@@ -34,8 +34,11 @@ pytest
 ## Flow supported
 1. Upload front/back photos
 2. Store originals in object storage adapter (`storage/` local for MVP)
-3. Analyze via mock OCR + embeddings through `AnalysisPipeline`
+3. Analyze via real OCR (OCR.space API) + image-derived embeddings through `AnalysisPipeline`
 4. Rank top 5 local catalog candidates with explanations
 5. Confirm match or none-of-these
 6. Persist inventory entry + valuation snapshot
 7. Browse/search inventory and card detail
+
+
+Set `OCR_SPACE_API_KEY` to your OCR.space key for production-quality OCR (the API default `helloworld` key is used when not set).
