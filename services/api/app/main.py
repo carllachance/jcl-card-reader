@@ -1,14 +1,31 @@
-from fastapi import FastAPI
-from app.api.cards import router as cards_router
-from app.core.db import Base, engine
+from flask import Flask, jsonify
+
 import app.models.catalog  # noqa
 import app.models.inventory  # noqa
-
-app = FastAPI(title="Card Reader API", version="0.1.0")
-Base.metadata.create_all(bind=engine)
-app.include_router(cards_router)
+from app.api.cards import cards_blueprint
+from app.core.db import Base, engine, remove_db_session
 
 
-@app.get('/health')
-def health():
-    return {"ok": True}
+def create_app() -> Flask:
+    app = Flask(__name__)
+    app.config["JSON_SORT_KEYS"] = False
+
+    Base.metadata.create_all(bind=engine)
+    app.register_blueprint(cards_blueprint)
+
+    @app.teardown_appcontext
+    def shutdown_session(_exception=None):
+        remove_db_session()
+
+    @app.get("/health")
+    def health():
+        return jsonify({"ok": True})
+
+    return app
+
+
+app = create_app()
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)
